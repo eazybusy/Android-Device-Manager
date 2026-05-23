@@ -3,7 +3,6 @@ from config.theme import *
 
 
 def card(parent, title: str) -> ctk.CTkFrame:
-    """სათაურიანი ბარათი."""
     frame = ctk.CTkFrame(parent, fg_color=BG_CARD, corner_radius=14)
     frame.pack(fill="x", pady=8)
     ctk.CTkLabel(
@@ -15,7 +14,6 @@ def card(parent, title: str) -> ctk.CTkFrame:
 
 
 def row(parent, label: str, widget_fn) -> None:
-    """ლეიბელი + ვიჯეტი ერთ რიგში."""
     r = ctk.CTkFrame(parent, fg_color="transparent")
     r.pack(fill="x", padx=18, pady=5)
     ctk.CTkLabel(
@@ -25,8 +23,7 @@ def row(parent, label: str, widget_fn) -> None:
     widget_fn(r)
 
 
-def apply_btn(parent, text="▶  გამოყენება", cmd=None) -> None:
-    """მწვანე ღილაკი სეთინგების გამოსაყენებლად."""
+def apply_btn(parent, text="Apply", cmd=None) -> None:
     ctk.CTkButton(
         parent, text=text, height=38, corner_radius=12,
         fg_color=GREEN, hover_color="#388E3C",
@@ -37,7 +34,6 @@ def apply_btn(parent, text="▶  გამოყენება", cmd=None) -> N
 
 
 def section_title(parent, text: str) -> None:
-    """მოდულის სათაური."""
     ctk.CTkLabel(
         parent, text=text,
         font=ctk.CTkFont(size=18, weight="bold"),
