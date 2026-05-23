@@ -1,6 +1,9 @@
 import customtkinter as ctk
 from config.theme import *
-from ui.helpers import card, row, apply_btn, section_title
+from ui.helpers import (
+    card, row, apply_btn, section_title,
+    make_scrollable, entry, option_menu, switch,
+)
 from core import adb
 
 SECTION = "webview"
@@ -14,43 +17,53 @@ class WebViewModule(ctk.CTkFrame):
         self._build()
 
     def _build(self):
-        section_title(self, "WebView Settings")
+        section_title(self, "WebView")
+
+        scroll = make_scrollable(self)
+        scroll.pack(fill="both", expand=True)
 
         data = self._storage.get(SECTION)
 
-        c = card(self, "WebView Config")
-        self.url     = ctk.StringVar(value=data.get("url", ""))
-        self.js      = ctk.BooleanVar(value=data.get("js", True))
-        self.cookies = ctk.BooleanVar(value=data.get("cookies", True))
-        self.cache   = ctk.StringVar(value=data.get("cache", "LOAD_DEFAULT"))
+        c = card(scroll, "WebView Config")
 
-        self.url.trace_add("write", lambda *_: self._storage.set_value(SECTION, "url", self.url.get()))
-        self.js.trace_add("write", lambda *_: self._storage.set_value(SECTION, "js", self.js.get()))
-        self.cookies.trace_add("write", lambda *_: self._storage.set_value(SECTION, "cookies", self.cookies.get()))
-        self.cache.trace_add("write", lambda *_: self._storage.set_value(SECTION, "cache", self.cache.get()))
+        self.url     = ctk.StringVar(value=data.get("url",     ""))
+        self.js      = ctk.BooleanVar(value=data.get("js",      True))
+        self.cookies = ctk.BooleanVar(value=data.get("cookies", True))
+        self.cache   = ctk.StringVar(value=data.get("cache",   "LOAD_DEFAULT"))
+
+        self.url.trace_add(
+            "write", lambda *_: self._storage.set_value(SECTION, "url", self.url.get()))
+        self.js.trace_add(
+            "write", lambda *_: self._storage.set_value(SECTION, "js", self.js.get()))
+        self.cookies.trace_add(
+            "write", lambda *_: self._storage.set_value(SECTION, "cookies", self.cookies.get()))
+        self.cache.trace_add(
+            "write", lambda *_: self._storage.set_value(SECTION, "cache", self.cache.get()))
 
         row(c, "Start URL",
-            lambda p: ctk.CTkEntry(p, textvariable=self.url,
-                width=280, fg_color=BG_PANEL, border_color=ACCENT,
-                placeholder_text="https://..."
+            lambda p: entry(
+                p, self.url, width=280, placeholder="https://..."
             ).pack(side="left"))
+
         row(c, "JavaScript",
-            lambda p: ctk.CTkSwitch(
-                p, text="", variable=self.js,
-                onvalue=True, offvalue=False, button_color=ACCENT
-            ).pack(side="left"))
+            lambda p: switch(p, self.js).pack(side="left"))
+
         row(c, "Cookies",
-            lambda p: ctk.CTkSwitch(
-                p, text="", variable=self.cookies,
-                onvalue=True, offvalue=False, button_color=ACCENT
-            ).pack(side="left"))
+            lambda p: switch(p, self.cookies).pack(side="left"))
+
         row(c, "Cache Mode",
-            lambda p: ctk.CTkOptionMenu(
-                p, values=["LOAD_DEFAULT", "LOAD_CACHE_ELSE_NETWORK",
-                           "LOAD_NO_CACHE", "LOAD_CACHE_ONLY"],
-                variable=self.cache,
-                fg_color=BG_PANEL, button_color=ACCENT, width=220
+            lambda p: option_menu(
+                p,
+                [
+                    "LOAD_DEFAULT",
+                    "LOAD_CACHE_ELSE_NETWORK",
+                    "LOAD_NO_CACHE",
+                    "LOAD_CACHE_ONLY",
+                ],
+                self.cache,
+                width=220,
             ).pack(side="left"))
+
         apply_btn(c, "Apply WebView", self._apply)
 
     def _apply(self):

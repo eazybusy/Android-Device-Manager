@@ -1,6 +1,9 @@
 import customtkinter as ctk
 from config.theme import *
-from ui.helpers import card, row, apply_btn, section_title
+from ui.helpers import (
+    card, row, apply_btn, section_title,
+    make_scrollable, entry, warning_label,
+)
 from core import adb
 
 SECTION = "network"
@@ -16,9 +19,14 @@ class NetworkModule(ctk.CTkFrame):
     def _build(self):
         section_title(self, "Network / APN")
 
+        scroll = make_scrollable(self)
+        scroll.pack(fill="both", expand=True)
+
         data = self._storage.get(SECTION)
 
-        c1 = card(self, "APN Settings")
+        # ── APN Settings ───────────────────────────────────────────────────────
+        c1 = card(scroll, "APN Settings")
+
         self.apn_vars = {}
         fields = [
             ("APN Name", "apn_name"),
@@ -28,43 +36,46 @@ class NetworkModule(ctk.CTkFrame):
             ("Proxy",    "proxy"),
             ("Port",     "port"),
         ]
+
         for label, key in fields:
             v = ctk.StringVar(value=data.get(key, ""))
-            v.trace_add("write", lambda *_, k=key, var=v: self._save_apn(k, var))
+            v.trace_add(
+                "write",
+                lambda *_, k=key, var=v: self._save_apn(k, var),
+            )
             self.apn_vars[key] = v
             row(c1, label,
-                lambda p, var=v: ctk.CTkEntry(
-                    p, textvariable=var, width=240,
-                    fg_color=BG_PANEL, border_color=ACCENT
-                ).pack(side="left"))
+                lambda p, var=v: entry(p, var, width=240).pack(side="left"))
 
-        ctk.CTkLabel(
-            c1,
-            text="APN write requires Root or Carrier Privilege",
-            text_color=YELLOW, font=ctk.CTkFont(size=11)
-        ).pack(anchor="w", padx=18, pady=(4, 0))
+        warning_label(c1, "APN write requires Root or Carrier Privilege")
         apply_btn(c1, "Apply APN", self._apply_apn)
 
-        c2 = card(self, "API Settings")
-        self.api_ip   = ctk.StringVar(value=data.get("api_ip", ""))
-        self.api_port = ctk.StringVar(value=data.get("api_port", ""))
-        self.api_key  = ctk.StringVar(value=data.get("api_key", ""))
+        # ── API Settings ───────────────────────────────────────────────────────
+        c2 = card(scroll, "API Settings")
 
-        for var, key in [(self.api_ip, "api_ip"), (self.api_port, "api_port"), (self.api_key, "api_key")]:
-            var.trace_add("write", lambda *_, k=key, v=var: self._save_api(k, v))
+        self.api_ip   = ctk.StringVar(value=data.get("api_ip",   ""))
+        self.api_port = ctk.StringVar(value=data.get("api_port", ""))
+        self.api_key  = ctk.StringVar(value=data.get("api_key",  ""))
+
+        for var, key in [
+            (self.api_ip,   "api_ip"),
+            (self.api_port, "api_port"),
+            (self.api_key,  "api_key"),
+        ]:
+            var.trace_add(
+                "write",
+                lambda *_, k=key, v=var: self._save_api(k, v),
+            )
 
         row(c2, "IP Address",
-            lambda p: ctk.CTkEntry(p, textvariable=self.api_ip,
-                width=240, fg_color=BG_PANEL, border_color=ACCENT
-            ).pack(side="left"))
+            lambda p: entry(p, self.api_ip, width=240,
+                            placeholder="192.168.x.x").pack(side="left"))
         row(c2, "Port",
-            lambda p: ctk.CTkEntry(p, textvariable=self.api_port,
-                width=240, fg_color=BG_PANEL, border_color=ACCENT
-            ).pack(side="left"))
+            lambda p: entry(p, self.api_port, width=240,
+                            placeholder="8080").pack(side="left"))
         row(c2, "API Key",
-            lambda p: ctk.CTkEntry(p, textvariable=self.api_key,
-                width=240, fg_color=BG_PANEL, border_color=ACCENT, show="*"
-            ).pack(side="left"))
+            lambda p: entry(p, self.api_key, width=240, show="*").pack(side="left"))
+
         apply_btn(c2, "Send API to Device", self._apply_api)
 
     def _save_apn(self, key: str, var: ctk.StringVar):
