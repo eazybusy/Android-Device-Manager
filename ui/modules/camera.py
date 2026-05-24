@@ -1,6 +1,14 @@
+"""
+ui/modules/camera.py — Camera config module
+"""
+
 import customtkinter as ctk
+from tkinter import messagebox
 from config.theme import *
-from ui.helpers import card, row, apply_btn, section_title, make_scrollable, option_menu
+from ui.helpers import (
+    card, row, apply_btn, section_title, make_scrollable,
+    option_menu, status_label, run_async, set_btn_busy,
+)
 from core import adb
 
 SECTION = "camera"
@@ -41,21 +49,23 @@ class CameraModule(ctk.CTkFrame):
             lambda p: option_menu(
                 p,
                 ["640x480", "1280x720", "1920x1080", "3840x2160"],
-                self.resolution,
-                width=160,
+                self.resolution, width=180,
             ).pack(side="left"))
 
         row(c, "FPS",
             lambda p: option_menu(
-                p, ["15", "24", "30", "60"], self.fps, width=160
+                p, ["15", "24", "30", "60"],
+                self.fps, width=180,
             ).pack(side="left"))
 
         row(c, "Flash Mode",
             lambda p: option_menu(
-                p, ["Auto", "On", "Off", "Torch"], self.flash, width=160
+                p, ["Auto", "On", "Off", "Torch"],
+                self.flash, width=180,
             ).pack(side="left"))
 
-        apply_btn(c, "Apply Camera Settings", self._apply)
+        self._apply_btn    = apply_btn(c, "Apply Camera Settings", self._apply)
+        self._apply_status = status_label(c)
 
     def _apply(self):
         extras = {
@@ -63,14 +73,40 @@ class CameraModule(ctk.CTkFrame):
             "fps":        self.fps.get(),
             "flash":      self.flash.get(),
         }
-        adb.send_broadcast("com.example.SET_CAMERA", extras)
+        set_btn_busy(self._apply_btn, True, "Apply Camera Settings")
+        self._apply_status.configure(
+            text="Broadcast-ი იგზავნება...", text_color=YELLOW)
 
-    def apply_all(self) -> tuple[bool, str]:
-        try:
-            self._apply()
-            return True, (
-                f"Camera: {self.resolution.get()} / "
-                f"{self.fps.get()}fps / flash={self.flash.get()}"
-            )
-        except Exception as e:
-            return False, str(e)
+        def _work():
+            return adb.send_broadcast("com.example.SET_CAMERA", extras)
+
+        def _done(result):
+            ok, code, msg = result
+            set_btn_busy(self._apply_btn, False, "Apply Camera Settings")
+            if ok:
+                self._apply_status.configure(
+                    text=f"Camera OK — {extras['resolution']} / {extras['fps']}fps",
+                    text_color=GREEN)
+            elif code == -1:
+                self._apply_status.configure(
+                    text="Broadcast გაიგზავნა — App-ს SET_CAMERA Receiver სჭირდება.",
+                    text_color=YELLOW)
+            else:
+                self._apply_status.configure(
+                    text=f"FAIL: {msg[:80]}", text_color=RED)
+                messagebox.showerror(
+                    "Camera", f"Camera broadcast ვერ გაიგზავნა.\n\n{msg}")
+
+        run_async(self, _work, _done)
+
+    def build_command(self):
+        from core.commands import SendBroadcastCommand
+        return SendBroadcastCommand(
+            action="com.example.SET_CAMERA",
+            extras={
+                "resolution": self.resolution.get(),
+                "fps":        self.fps.get(),
+                "flash":      self.flash.get(),
+            },
+            label="Camera Broadcast",
+        )

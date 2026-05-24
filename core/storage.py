@@ -1,4 +1,8 @@
+"""
+core/storage.py — In-memory profile data with thread-safe flush.
+"""
 import copy
+import threading
 from core import profiles as prof
 
 DEFAULT_CONFIG = prof.DEFAULT_CONFIG
@@ -8,10 +12,12 @@ class Storage:
     def __init__(self):
         self._profile_name: str = ""
         self._data: dict = {}
+        self._lock = threading.Lock()
 
     def set_profile(self, name: str) -> None:
-        self._profile_name = name
-        self._data = prof.load_profile(name)
+        with self._lock:
+            self._profile_name = name
+            self._data = prof.load_profile(name)
 
     def get_profile_name(self) -> str:
         return self._profile_name
@@ -24,16 +30,26 @@ class Storage:
         return enabled.get(section, True)
 
     def get(self, section: str) -> dict:
-        if section not in self._data:
-            self._data[section] = dict(DEFAULT_CONFIG.get(section, {}))
-        return self._data[section]
+        """
+        Returns a shallow copy of the section dict.
+        Callers cannot mutate internal storage state accidentally.
+        """
+        with self._lock:
+            if section not in self._data:
+                self._data[section] = dict(DEFAULT_CONFIG.get(section, {}))
+            return dict(self._data[section])
 
     def set_value(self, section: str, key: str, value) -> None:
-        if section not in self._data:
-            self._data[section] = dict(DEFAULT_CONFIG.get(section, {}))
-        self._data[section][key] = value
-        self._flush()
+        with self._lock:
+            if section not in self._data:
+                self._data[section] = dict(DEFAULT_CONFIG.get(section, {}))
+            self._data[section][key] = value
+            self._flush_locked()
 
-    def _flush(self):
+    def _flush_locked(self) -> None:
+        """Must be called with self._lock held."""
         if self._profile_name:
-            prof.save_profile(self._profile_name, self._data)
+            try:
+                prof.save_profile(self._profile_name, copy.deepcopy(self._data))
+            except Exception:
+                pass   # never crash the UI thread on a save error
